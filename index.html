@@ -44,7 +44,7 @@
 
   <script>
     let radiusCyl = 2;
-    let radiusRod = 1;
+    let radiusRod = 0.75;
     const maxCourse = 10;
 
     const scene = new THREE.Scene();
@@ -56,18 +56,16 @@
     const light = new THREE.DirectionalLight(0xffffff, 1.5);
     light.position.set(10, 10, 10);
     scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040)); // Soft ambient light
+    scene.add(new THREE.AmbientLight(0x404040)); // lumière d'ambiance douce
 
-    // Materials
     const transparentMaterial = new THREE.MeshStandardMaterial({ color: 0x5555ff, transparent: true, opacity: 0.35 });
     const metalMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.4 });
     const redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.5, roughness: 0.5 });
 
-    // Geometry setup
     let cyl, rod, piston;
 
     function createGeometry() {
-      // Remove previous objects
+      // Supprimer les anciens éléments
       if (cyl) scene.remove(cyl);
       if (rod) scene.remove(rod);
       if (piston) scene.remove(piston);
@@ -90,9 +88,7 @@
       scene.add(piston);
     }
 
-    // Initial geometry
     createGeometry();
-
     camera.position.z = 25;
 
     const slider = document.getElementById("slider");
@@ -113,7 +109,7 @@
       volTigeEl.textContent = volTige.toFixed(2);
     }
 
-    // Listeners
+    // Événements
     slider.addEventListener("input", updatePistonPosition);
 
     pistonSize.addEventListener("input", () => {
