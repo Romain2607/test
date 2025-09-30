@@ -2,77 +2,107 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Démo Vérin Hydraulique</title>
+  <title>Vérin Hydraulique Interactif</title>
   <style>
-    body { margin: 0; background: #222; color: white; font-family: sans-serif; }
+    body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; }
     canvas { display: block; }
-    #info {
+    #controls {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.6);
       padding: 10px;
       border-radius: 8px;
     }
     input[type="range"] {
       width: 200px;
     }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <div id="info">
+  <div id="controls">
     <label>Course du piston :
       <input type="range" id="slider" min="0" max="100" value="50">
-    </label><br>
-    Volume fond : <span id="volFond">-</span> cm³<br>
-    Volume tige : <span id="volTige">-</span> cm³
+    </label>
+    <label>Diamètre piston :
+      <input type="range" id="pistonSize" min="2" max="6" value="4">
+    </label>
+    <label>Diamètre tige :
+      <input type="range" id="rodSize" min="0.5" max="3" value="1.5" step="0.1">
+    </label>
+    <div style="margin-top: 8px;">
+      Volume fond : <span id="volFond">-</span> cm³<br>
+      Volume tige : <span id="volTige">-</span> cm³
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
 
   <script>
-    const radiusCyl = 2;
-    const radiusRod = 1;
+    let radiusCyl = 2;
+    let radiusRod = 1;
     const maxCourse = 10;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
-    const renderer = new THREE.WebGLRenderer({antialias: true});
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    const light = new THREE.PointLight(0xffffff, 1);
+    const light = new THREE.DirectionalLight(0xffffff, 1.5);
     light.position.set(10, 10, 10);
     scene.add(light);
+    scene.add(new THREE.AmbientLight(0x404040)); // Soft ambient light
 
-    const cylLength = maxCourse + 5;
-    const cylGeometry = new THREE.CylinderGeometry(radiusCyl, radiusCyl, cylLength, 32);
-    const cylMaterial = new THREE.MeshStandardMaterial({ color: 0x5555ff, transparent: true, opacity: 0.4 });
-    const cyl = new THREE.Mesh(cylGeometry, cylMaterial);
-    cyl.rotation.z = Math.PI / 2;
-    scene.add(cyl);
+    // Materials
+    const transparentMaterial = new THREE.MeshStandardMaterial({ color: 0x5555ff, transparent: true, opacity: 0.35 });
+    const metalMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.4 });
+    const redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.5, roughness: 0.5 });
 
-    const rodGeometry = new THREE.CylinderGeometry(radiusRod, radiusRod, 10, 32);
-    const rodMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-    const rod = new THREE.Mesh(rodGeometry, rodMaterial);
-    rod.rotation.z = Math.PI / 2;
-    rod.position.x = maxCourse / 2 + 5;
-    scene.add(rod);
+    // Geometry setup
+    let cyl, rod, piston;
 
-    const pistonGeometry = new THREE.CylinderGeometry(radiusCyl, radiusCyl, 0.5, 32);
-    const pistonMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    const piston = new THREE.Mesh(pistonGeometry, pistonMaterial);
-    piston.rotation.z = Math.PI / 2;
-    scene.add(piston);
+    function createGeometry() {
+      // Remove previous objects
+      if (cyl) scene.remove(cyl);
+      if (rod) scene.remove(rod);
+      if (piston) scene.remove(piston);
+
+      const cylLength = maxCourse + 5;
+
+      const cylGeometry = new THREE.CylinderGeometry(radiusCyl, radiusCyl, cylLength, 64);
+      cyl = new THREE.Mesh(cylGeometry, transparentMaterial);
+      cyl.rotation.z = Math.PI / 2;
+      scene.add(cyl);
+
+      const rodGeometry = new THREE.CylinderGeometry(radiusRod, radiusRod, 10, 64);
+      rod = new THREE.Mesh(rodGeometry, metalMaterial);
+      rod.rotation.z = Math.PI / 2;
+      scene.add(rod);
+
+      const pistonGeometry = new THREE.CylinderGeometry(radiusCyl, radiusCyl, 0.6, 64);
+      piston = new THREE.Mesh(pistonGeometry, redMaterial);
+      piston.rotation.z = Math.PI / 2;
+      scene.add(piston);
+    }
+
+    // Initial geometry
+    createGeometry();
 
     camera.position.z = 25;
 
     const slider = document.getElementById("slider");
+    const pistonSize = document.getElementById("pistonSize");
+    const rodSize = document.getElementById("rodSize");
     const volFondEl = document.getElementById("volFond");
     const volTigeEl = document.getElementById("volTige");
 
-    function updatePiston(coursePercent) {
-      const course = (coursePercent / 100) * maxCourse;
+    function updatePistonPosition() {
+      const course = (slider.value / 100) * maxCourse;
       piston.position.x = course - (maxCourse / 2);
       rod.position.x = course + 5;
 
@@ -83,11 +113,22 @@
       volTigeEl.textContent = volTige.toFixed(2);
     }
 
-    slider.addEventListener("input", () => {
-      updatePiston(slider.value);
+    // Listeners
+    slider.addEventListener("input", updatePistonPosition);
+
+    pistonSize.addEventListener("input", () => {
+      radiusCyl = parseFloat(pistonSize.value) / 2;
+      createGeometry();
+      updatePistonPosition();
     });
 
-    updatePiston(slider.value);
+    rodSize.addEventListener("input", () => {
+      radiusRod = parseFloat(rodSize.value) / 2;
+      createGeometry();
+      updatePistonPosition();
+    });
+
+    updatePistonPosition();
 
     function animate() {
       requestAnimationFrame(animate);
