@@ -28,7 +28,7 @@
     Volume tige : <span id="volTige">-</span> cm³
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
 
   <script>
     const radiusCyl = 2;
@@ -37,7 +37,7 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -56,7 +56,7 @@
     const rodMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
     const rod = new THREE.Mesh(rodGeometry, rodMaterial);
     rod.rotation.z = Math.PI / 2;
-    rod.position.x = maxCourse / 2 + 2.5;
+    rod.position.x = maxCourse / 2 + 5;
     scene.add(rod);
 
     const pistonGeometry = new THREE.CylinderGeometry(radiusCyl, radiusCyl, 0.5, 32);
@@ -65,7 +65,7 @@
     piston.rotation.z = Math.PI / 2;
     scene.add(piston);
 
-    camera.position.z = 20;
+    camera.position.z = 25;
 
     const slider = document.getElementById("slider");
     const volFondEl = document.getElementById("volFond");
@@ -95,6 +95,12 @@
     }
 
     animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>
