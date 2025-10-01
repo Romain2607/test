@@ -105,14 +105,12 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/jsm/renderers/CSS2DRenderer.js"></script>
 
 <script>
-  // === Setup scène, caméra, rendu ===
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // Label renderer pour textes 3D
   const labelRenderer = new THREE.CSS2DRenderer();
   labelRenderer.setSize(window.innerWidth, window.innerHeight);
   labelRenderer.domElement.style.position = 'absolute';
@@ -120,32 +118,32 @@
   labelRenderer.domElement.style.pointerEvents = 'none';
   document.body.appendChild(labelRenderer.domElement);
 
-  // Lumières
   const dirLight = new THREE.DirectionalLight(0xffffff, 1);
   dirLight.position.set(10,10,10);
   scene.add(dirLight);
   scene.add(new THREE.AmbientLight(0x404040));
 
-  // Paramètres initiaux
-  let diameterPiston = 4.0;  // cm
-  let diameterTige = 1.5;    // cm
-  const maxCourse = 10;      // longueur max cm
+  let diameterPiston = 4.0;
+  let diameterTige = 1.5;
+  const maxCourse = 10;
 
-  // Objets du vérin
-  let groupVerin;
+  // Group pour le vérin
+  let groupVerin = new THREE.Group();
+  scene.add(groupVerin);
+
+  // Objets
   let cylFond, cylTige, piston, rod;
   let labelFond, labelTige, labelPiston, labelTigeLabel;
 
-  // Fonction création vérin
+  // Création vérin (une fois, on met à jour la géométrie ensuite)
   function createVerin() {
-    if(groupVerin) {
-      scene.remove(groupVerin);
-      groupVerin.children.forEach(c => {
-        if (c.geometry) c.geometry.dispose();
-        if (c.material) c.material.dispose();
-      });
+    // Supprime anciens enfants
+    while(groupVerin.children.length > 0){
+      let obj = groupVerin.children[0];
+      groupVerin.remove(obj);
+      if(obj.geometry) obj.geometry.dispose();
+      if(obj.material) obj.material.dispose();
     }
-    groupVerin = new THREE.Group();
 
     const longueurTotale = maxCourse + 12;
     const demiLong = longueurTotale / 2;
@@ -211,98 +209,96 @@
     labelTigeLabel = makeLabel("Tige");
     labelTigeLabel.position.set(rod.position.x, rTige + 1, 0);
     groupVerin.add(labelTigeLabel);
-
-    scene.add(groupVerin);
   }
 
-  // Mise à jour vérin selon sliders
   function updateVerin() {
-    // S'assurer tige ≤ piston
+    // Clamp tige ≤ piston
     if(diameterTige > diameterPiston) {
       diameterTige = diameterPiston;
       sliderTige.value = diameterTige.toFixed(1);
     }
 
+    // Met à jour géométries
     createVerin();
 
-    // Position piston et tige selon course
     const courseSlider = sliderCourse.value;
     const course = (courseSlider / 100) * maxCourse;
     const pistonX = course - (maxCourse / 2);
     piston.position.x = pistonX;
 
-    // Tige position : reliée au piston, débordant à droite
+    // Tige position reliée au piston, avance à droite
     const decalageTige = 6;
     rod.position.x = pistonX + decalageTige;
 
-    // Mise à jour labels
+    // Labels suivent les pièces
     labelPiston.position.x = piston.position.x;
     labelTigeLabel.position.x = rod.position.x;
 
-    // Rotation groupe complet sur axe Y
-    const rotDeg = sliderRot.value;
+    // Rotation 360 autour Y
+    const rotDeg = parseFloat(sliderRot.value);
     groupVerin.rotation.y = THREE.MathUtils.degToRad(rotDeg);
 
-    // Calcul volumes (cm3)
-    const rP = diameterPiston / 2;
-    const rT = diameterTige / 2;
-    const volFond = Math.PI * rP * rP * course;
-    const volTige = Math.PI * (rP * rP - rT * rT) * (maxCourse - course);
+    // Calcul volumes (cylindres)
+    const rPiston = diameterPiston / 2;
+    const rTige = diameterTige / 2;
+
+    const volFond = Math.PI * rPiston * rPiston * course;
+    const volTige = Math.PI * (rPiston*rPiston - rTige*rTige) * (maxCourse - course);
 
     volFondEl.textContent = volFond.toFixed(2);
-    volTigeVolEl.textContent = volTige.toFixed(2);
+    volTigeVol.textContent = volTige.toFixed(2);
 
-    // Mise à jour valeurs numériques sliders
-    valCourse.textContent = (course).toFixed(2) + " cm";
+    // Mise à jour valeurs affichées
+    valCourse.textContent = course.toFixed(2) + " cm";
     valRot.textContent = rotDeg + "°";
-    valPiston.textContent = diameterPiston.toFixed(2);
-    valTige.textContent = diameterTige.toFixed(2);
+    valPiston.textContent = diameterPiston.toFixed(1);
+    valTige.textContent = diameterTige.toFixed(1);
   }
 
-  // Elements DOM contrôles
-  const sliderCourse = document.getElementById("sliderCourse");
-  const sliderRot = document.getElementById("sliderRot");
-  const sliderPiston = document.getElementById("sliderPiston");
-  const sliderTige = document.getElementById("sliderTige");
-  const volFondEl = document.getElementById("volFond");
-  const volTigeVolEl = document.getElementById("volTigeVol");
-  const valCourse = document.getElementById("valCourse");
-  const valRot = document.getElementById("valRot");
-  const valPiston = document.getElementById("valPiston");
-  const valTige = document.getElementById("valTige");
-  const autoAnimCheck = document.getElementById("autoAnim");
+  // Gestion UI
+  const sliderCourse = document.getElementById('sliderCourse');
+  const sliderRot = document.getElementById('sliderRot');
+  const sliderPiston = document.getElementById('sliderPiston');
+  const sliderTige = document.getElementById('sliderTige');
 
-  // Écouteurs événements sliders
-  sliderCourse.addEventListener("input", () => {
-    if(autoAnimCheck.checked) return; // désactiver contrôle manuel si auto activé
+  const volFondEl = document.getElementById('volFond');
+  const volTigeVol = document.getElementById('volTigeVol');
+
+  const valCourse = document.getElementById('valCourse');
+  const valRot = document.getElementById('valRot');
+  const valPiston = document.getElementById('valPiston');
+  const valTige = document.getElementById('valTige');
+
+  sliderCourse.addEventListener('input', () => {
     updateVerin();
   });
-  sliderRot.addEventListener("input", updateVerin);
-  sliderPiston.addEventListener("input", () => {
+
+  sliderRot.addEventListener('input', () => {
+    updateVerin();
+  });
+
+  sliderPiston.addEventListener('input', () => {
     diameterPiston = parseFloat(sliderPiston.value);
+    updateVerin();
+  });
+
+  sliderTige.addEventListener('input', () => {
+    diameterTige = parseFloat(sliderTige.value);
     if(diameterTige > diameterPiston) {
       diameterTige = diameterPiston;
       sliderTige.value = diameterTige.toFixed(1);
     }
     updateVerin();
   });
-  sliderTige.addEventListener("input", () => {
-    let val = parseFloat(sliderTige.value);
-    if(val > diameterPiston) {
-      val = diameterPiston;
-      sliderTige.value = val.toFixed(1);
-    }
-    diameterTige = val;
-    updateVerin();
-  });
 
-  // Animation automatique piston (va-et-vient)
+  // Animation automatique piston
   let autoAnim = false;
-  let direction = 1; // 1 = extension, -1 = rétraction
-  let speed = 0.3;   // % par frame environ
+  let direction = 1;
+  let speed = 0.3;
 
-  autoAnimCheck.addEventListener('change', () => {
-    autoAnim = autoAnimCheck.checked;
+  const checkboxAuto = document.getElementById('autoAnim');
+  checkboxAuto.addEventListener('change', () => {
+    autoAnim = checkboxAuto.checked;
   });
 
   // Initial setup
@@ -312,7 +308,6 @@
   camera.position.set(0, 10, 25);
   camera.lookAt(0, 0, 0);
 
-  // Gestion resize
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
@@ -320,19 +315,15 @@
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Animation loop
   function animate() {
     requestAnimationFrame(animate);
-
     if(autoAnim) {
       let val = parseFloat(sliderCourse.value);
       val += direction * speed;
-      if(val >= 100) {
-        val = 100;
-        direction = -1;
-      } else if(val <= 0) {
-        val = 0;
-        direction = 1;
+      if(val > 100) {
+        val = 100; direction = -1;
+      } else if(val < 0) {
+        val = 0; direction = 1;
       }
       sliderCourse.value = val.toFixed(1);
       updateVerin();
@@ -342,7 +333,6 @@
     labelRenderer.render(scene, camera);
   }
   animate();
-
 </script>
 
 </body>
