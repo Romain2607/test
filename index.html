@@ -102,7 +102,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/jsm/renderers/CSS2DRenderer.js"></script>
+<!-- ✅ Utilisation de la version UMD (non module) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/renderers/CSS2DRenderer.js"></script>
 
 <script>
   const scene = new THREE.Scene();
@@ -135,9 +136,7 @@
   let cylFond, cylTige, piston, rod;
   let labelFond, labelTige, labelPiston, labelTigeLabel;
 
-  // Création vérin (une fois, on met à jour la géométrie ensuite)
   function createVerin() {
-    // Supprime anciens enfants
     while(groupVerin.children.length > 0){
       let obj = groupVerin.children[0];
       groupVerin.remove(obj);
@@ -151,7 +150,6 @@
     const rPiston = diameterPiston / 2;
     const rTige = diameterTige / 2;
 
-    // Chambre fond (bleu transparent)
     const geoFond = new THREE.CylinderGeometry(rPiston, rPiston, demiLong, 64);
     const matFond = new THREE.MeshStandardMaterial({color:0x0077ff, transparent:true, opacity:0.3});
     cylFond = new THREE.Mesh(geoFond, matFond);
@@ -159,7 +157,6 @@
     cylFond.position.x = - demiLong/2;
     groupVerin.add(cylFond);
 
-    // Chambre tige (vert transparent)
     const geoTige = new THREE.CylinderGeometry(rPiston, rPiston, demiLong, 64);
     const matTige = new THREE.MeshStandardMaterial({color:0x00ff88, transparent:true, opacity:0.3});
     cylTige = new THREE.Mesh(geoTige, matTige);
@@ -167,14 +164,12 @@
     cylTige.position.x = demiLong/2;
     groupVerin.add(cylTige);
 
-    // Piston (rouge)
     const geoPiston = new THREE.CylinderGeometry(rPiston, rPiston, 1, 64);
     const matPiston = new THREE.MeshStandardMaterial({color:0xff0000});
     piston = new THREE.Mesh(geoPiston, matPiston);
     piston.rotation.z = Math.PI/2;
     groupVerin.add(piston);
 
-    // Tige (gris)
     const longueurTige = 14;
     const geoRod = new THREE.CylinderGeometry(rTige, rTige, longueurTige, 64);
     const matRod = new THREE.MeshStandardMaterial({color:0xaaaaaa});
@@ -182,7 +177,6 @@
     rod.rotation.z = Math.PI/2;
     groupVerin.add(rod);
 
-    // Labels 3D
     function makeLabel(text) {
       const div = document.createElement('div');
       div.textContent = text;
@@ -212,33 +206,25 @@
   }
 
   function updateVerin() {
-    // Clamp tige ≤ piston
     if(diameterTige > diameterPiston) {
       diameterTige = diameterPiston;
       sliderTige.value = diameterTige.toFixed(1);
     }
-
-    // Met à jour géométries
     createVerin();
 
     const courseSlider = sliderCourse.value;
     const course = (courseSlider / 100) * maxCourse;
     const pistonX = course - (maxCourse / 2);
     piston.position.x = pistonX;
-
-    // Tige position reliée au piston, avance à droite
     const decalageTige = 6;
     rod.position.x = pistonX + decalageTige;
 
-    // Labels suivent les pièces
     labelPiston.position.x = piston.position.x;
     labelTigeLabel.position.x = rod.position.x;
 
-    // Rotation 360 autour Y
     const rotDeg = parseFloat(sliderRot.value);
     groupVerin.rotation.y = THREE.MathUtils.degToRad(rotDeg);
 
-    // Calcul volumes (cylindres)
     const rPiston = diameterPiston / 2;
     const rTige = diameterTige / 2;
 
@@ -248,14 +234,12 @@
     volFondEl.textContent = volFond.toFixed(2);
     volTigeVol.textContent = volTige.toFixed(2);
 
-    // Mise à jour valeurs affichées
     valCourse.textContent = course.toFixed(2) + " cm";
     valRot.textContent = rotDeg + "°";
     valPiston.textContent = diameterPiston.toFixed(1);
     valTige.textContent = diameterTige.toFixed(1);
   }
 
-  // Gestion UI
   const sliderCourse = document.getElementById('sliderCourse');
   const sliderRot = document.getElementById('sliderRot');
   const sliderPiston = document.getElementById('sliderPiston');
@@ -269,19 +253,12 @@
   const valPiston = document.getElementById('valPiston');
   const valTige = document.getElementById('valTige');
 
-  sliderCourse.addEventListener('input', () => {
-    updateVerin();
-  });
-
-  sliderRot.addEventListener('input', () => {
-    updateVerin();
-  });
-
+  sliderCourse.addEventListener('input', updateVerin);
+  sliderRot.addEventListener('input', updateVerin);
   sliderPiston.addEventListener('input', () => {
     diameterPiston = parseFloat(sliderPiston.value);
     updateVerin();
   });
-
   sliderTige.addEventListener('input', () => {
     diameterTige = parseFloat(sliderTige.value);
     if(diameterTige > diameterPiston) {
@@ -291,7 +268,6 @@
     updateVerin();
   });
 
-  // Animation automatique piston
   let autoAnim = false;
   let direction = 1;
   let speed = 0.3;
@@ -301,7 +277,6 @@
     autoAnim = checkboxAuto.checked;
   });
 
-  // Initial setup
   createVerin();
   updateVerin();
 
@@ -328,12 +303,10 @@
       sliderCourse.value = val.toFixed(1);
       updateVerin();
     }
-
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
   }
   animate();
 </script>
-
 </body>
 </html>
