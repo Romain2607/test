@@ -2,134 +2,257 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Vérin Hydraulique 3D Test</title>
+  <title>Vérin Hydraulique Interactif 3D</title>
   <style>
-    body { margin: 0; background: #1a1a1a; }
+    body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; }
     canvas { display: block; }
     #controls {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.6);
-      padding: 10px;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 15px;
       border-radius: 8px;
-      color: white;
-      font-family: sans-serif;
+      max-width: 250px;
+      user-select: none;
+      font-size: 14px;
     }
-    input[type=range] { width: 200px; }
-    label { display: block; margin-top: 8px; }
+    label {
+      display: block;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+    input[type=range] {
+      width: 100%;
+    }
+    #volumes {
+      margin-top: 12px;
+      font-weight: bold;
+      font-size: 15px;
+    }
   </style>
 </head>
 <body>
-  <div id="controls">
-    <label>Course : <input type="range" id="slider" min="0" max="100" value="50"></label>
-    <label>Rotation : <input type="range" id="rot" min="0" max="360" value="0"></label>
+
+<div id="controls">
+  <label>Course piston : <input type="range" id="sliderCourse" min="0" max="100" value="50"></label>
+  <label>Rotation (°) : <input type="range" id="sliderRot" min="0" max="360" value="0"></label>
+  <label>Diamètre piston (cm) : <input type="range" id="sliderPiston" min="2" max="6" step="0.1" value="4"></label>
+  <label>Diamètre tige (cm) : <input type="range" id="sliderTige" min="0.5" max="6" step="0.1" value="1.5"></label>
+  <div id="volumes">
+    Volume chambre fond : <span id="volFond">-</span> cm³<br>
+    Volume chambre tige : <span id="volTige">-</span> cm³
   </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
-  <script>
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+<script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/jsm/renderers/CSS2DRenderer.js"></script>
 
-    // Lumières
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(10, 10, 10);
-    scene.add(dirLight);
-    scene.add(new THREE.AmbientLight(0x404040));
+<script>
+  // Setup scène, caméra, rendu
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-    // Paramètres du vérin
-    let radiusCyl = 2;
-    let radiusRod = 0.75;
-    const maxCourse = 10;
+  // Label renderer pour textes 3D
+  const labelRenderer = new THREE.CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  document.body.appendChild(labelRenderer.domElement);
 
-    let group, cylFond, cylTige, piston, rod;
+  // Lumières
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+  dirLight.position.set(10,10,10);
+  scene.add(dirLight);
+  scene.add(new THREE.AmbientLight(0x404040));
 
-    function createVérin() {
-      if (group) {
-        scene.remove(group);
-      }
-      group = new THREE.Group();
+  // Paramètres initiaux
+  let diameterPiston = 4;  // cm
+  let diameterTige = 1.5;  // cm
+  const maxCourse = 10;    // longueur max en cm
 
-      // longueur totale (on peut ajuster)
-      const totalLength = maxCourse + 12;
-      const halfLen = totalLength / 2;
+  // Objets
+  let groupVérin;
+  let cylFond, cylTige, piston, rod;
+  let labelFond, labelTige, labelPiston, labelTigeLabel;
 
-      // Chambre fond (bleu transparent)
-      const geoFond = new THREE.CylinderGeometry(radiusCyl, radiusCyl, halfLen, 32);
-      const matFond = new THREE.MeshStandardMaterial({ color: 0x0077ff, transparent: true, opacity: 0.3 });
-      cylFond = new THREE.Mesh(geoFond, matFond);
-      cylFond.rotation.z = Math.PI/2;
-      cylFond.position.x = - (halfLen/2);
-      group.add(cylFond);
+  function createVérin() {
+    if(groupVérin) {
+      scene.remove(groupVérin);
+    }
+    groupVérin = new THREE.Group();
 
-      // Chambre tige (vert transparent)
-      const geoTige = new THREE.CylinderGeometry(radiusCyl, radiusCyl, halfLen, 32);
-      const matTige = new THREE.MeshStandardMaterial({ color: 0x00ff88, transparent: true, opacity: 0.3 });
-      cylTige = new THREE.Mesh(geoTige, matTige);
-      cylTige.rotation.z = Math.PI/2;
-      cylTige.position.x = + (halfLen/2);
-      group.add(cylTige);
+    // Longueurs
+    const longueurTotale = maxCourse + 12;
+    const demiLong = longueurTotale / 2;
 
-      // Piston (rouge)
-      const geoPiston = new THREE.CylinderGeometry(radiusCyl, radiusCyl, 1, 32);
-      const matPiston = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-      piston = new THREE.Mesh(geoPiston, matPiston);
-      piston.rotation.z = Math.PI/2;
-      group.add(piston);
+    // Rayon
+    const rPiston = diameterPiston / 2;
+    const rTige = diameterTige / 2;
 
-      // Tige (gris)
-      const rodLen = 14;
-      const geoRod = new THREE.CylinderGeometry(radiusRod, radiusRod, rodLen, 32);
-      const matRod = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-      rod = new THREE.Mesh(geoRod, matRod);
-      rod.rotation.z = Math.PI/2;
-      group.add(rod);
+    // Chambre fond (bleu transparent)
+    const geoFond = new THREE.CylinderGeometry(rPiston, rPiston, demiLong, 32);
+    const matFond = new THREE.MeshStandardMaterial({color:0x0077ff, transparent:true, opacity:0.3});
+    cylFond = new THREE.Mesh(geoFond, matFond);
+    cylFond.rotation.z = Math.PI/2;
+    cylFond.position.x = - demiLong/2;
+    groupVérin.add(cylFond);
 
-      scene.add(group);
+    // Chambre tige (vert transparent)
+    const geoTige = new THREE.CylinderGeometry(rPiston, rPiston, demiLong, 32);
+    const matTige = new THREE.MeshStandardMaterial({color:0x00ff88, transparent:true, opacity:0.3});
+    cylTige = new THREE.Mesh(geoTige, matTige);
+    cylTige.rotation.z = Math.PI/2;
+    cylTige.position.x = demiLong/2;
+    groupVérin.add(cylTige);
+
+    // Piston (rouge)
+    const geoPiston = new THREE.CylinderGeometry(rPiston, rPiston, 1, 32);
+    const matPiston = new THREE.MeshStandardMaterial({color:0xff0000});
+    piston = new THREE.Mesh(geoPiston, matPiston);
+    piston.rotation.z = Math.PI/2;
+    groupVérin.add(piston);
+
+    // Tige (gris)
+    const longueurTige = 14;
+    const geoRod = new THREE.CylinderGeometry(rTige, rTige, longueurTige, 32);
+    const matRod = new THREE.MeshStandardMaterial({color:0xaaaaaa});
+    rod = new THREE.Mesh(geoRod, matRod);
+    rod.rotation.z = Math.PI/2;
+    groupVérin.add(rod);
+
+    // Légendes 3D
+    // Fonction utilitaire pour créer labels CSS2D
+    function makeLabel(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      div.style.color = 'white';
+      div.style.fontWeight = 'bold';
+      div.style.textShadow = '0 0 5px black';
+      div.style.userSelect = 'none';
+      return new THREE.CSS2DObject(div);
     }
 
-    function update() {
-      const sliderVal = document.getElementById("slider").value;
-      const course = (sliderVal / 100) * maxCourse;
+    labelFond = makeLabel("Chambre Fond");
+    labelFond.position.set(cylFond.position.x, rPiston + 1, 0);
+    groupVérin.add(labelFond);
 
-      // Position du piston
-      const pistonX = course - (maxCourse / 2);
-      piston.position.x = pistonX;
+    labelTige = makeLabel("Chambre Tige");
+    labelTige.position.set(cylTige.position.x, rPiston + 1, 0);
+    groupVérin.add(labelTige);
 
-      // Position de la tige : fixée par rapport au piston
-      // On positionne le centre de la tige plus loin que le piston
-      const rodOffset = 6;
-      rod.position.x = pistonX + rodOffset;
+    labelPiston = makeLabel("Piston");
+    labelPiston.position.set(0, rPiston + 1, 0);
+    groupVérin.add(labelPiston);
 
-      // Rotation du groupe entier
-      const rotVal = document.getElementById("rot").value;
-      group.rotation.y = THREE.MathUtils.degToRad(rotVal);
+    labelTigeLabel = makeLabel("Tige");
+    labelTigeLabel.position.set(rod.position.x, rTige + 1, 0);
+    groupVérin.add(labelTigeLabel);
+
+    scene.add(groupVérin);
+  }
+
+  function updateVérin() {
+    // Limite diamètre tige ≤ diamètre piston
+    if(diameterTige > diameterPiston) {
+      diameterTige = diameterPiston;
+      sliderTige.value = diameterTige;
     }
 
-    // Initialisation
+    // Mise à jour géométrie si diamètre modifié
     createVérin();
-    camera.position.set(0, 0, 30);
-    update();
 
-    function animate() {
-      requestAnimationFrame(animate);
-      update();
-      renderer.render(scene, camera);
+    // Position piston et tige selon course
+    const courseSlider = sliderCourse.value;
+    const course = (courseSlider / 100) * maxCourse;
+    const pistonX = course - (maxCourse / 2);
+    piston.position.x = pistonX;
+
+    // Position tige relative au piston
+    const decalageTige = 6;
+    rod.position.x = pistonX + decalageTige;
+
+    // Mise à jour légendes tige et piston
+    labelPiston.position.x = piston.position.x;
+    labelTigeLabel.position.x = rod.position.x;
+
+    // Rotation de tout le groupe
+    const rotDeg = sliderRot.value;
+    groupVérin.rotation.y = THREE.MathUtils.degToRad(rotDeg);
+
+    // Calcul volumes (en cm3)
+    const rP = diameterPiston / 2;
+    const rT = diameterTige / 2;
+    const volFond = Math.PI * rP * rP * course;
+    const volTige = Math.PI * (rP * rP - rT * rT) * (maxCourse - course);
+
+    volFondEl.textContent = volFond.toFixed(2);
+    volTigeEl.textContent = volTige.toFixed(2);
+  }
+
+  // Initialisation
+  createVérin();
+
+  camera.position.set(0, 5, 30);
+  camera.lookAt(0,0,0);
+
+  // Elements DOM contrôles
+  const sliderCourse = document.getElementById("sliderCourse");
+  const sliderRot = document.getElementById("sliderRot");
+  const sliderPiston = document.getElementById("sliderPiston");
+  const sliderTige = document.getElementById("sliderTige");
+  const volFondEl = document.getElementById("volFond");
+  const volTigeEl = document.getElementById("volTige");
+
+  // Forcer limite initiale si nécessaire
+  if(parseFloat(sliderTige.value) > parseFloat(sliderPiston.value)) {
+    sliderTige.value = sliderPiston.value;
+  }
+
+  // Événements
+  sliderCourse.addEventListener("input", updateVérin);
+  sliderRot.addEventListener("input", updateVérin);
+  sliderPiston.addEventListener("input", () => {
+    diameterPiston = parseFloat(sliderPiston.value);
+    if(diameterTige > diameterPiston) {
+      diameterTige = diameterPiston;
+      sliderTige.value = diameterTige;
     }
-    animate();
+    updateVérin();
+  });
+  sliderTige.addEventListener("input", () => {
+    let val = parseFloat(sliderTige.value);
+    if(val > diameterPiston) {
+      val = diameterPiston;
+      sliderTige.value = val;
+    }
+    diameterTige = val;
+    updateVérin();
+  });
 
-    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+  }
 
-    document.getElementById("slider").addEventListener("input", update);
-    document.getElementById("rot").addEventListener("input", update);
+  animate();
 
-  </script>
+  // Resize
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // Initial update pour afficher tout
+  updateVérin();
+
+</script>
 </body>
 </html>
