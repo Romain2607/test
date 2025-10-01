@@ -102,7 +102,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
-<!-- ✅ Utilisation de la version UMD (non module) -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/renderers/CSS2DRenderer.js"></script>
 
 <script>
@@ -128,28 +127,20 @@
   let diameterTige = 1.5;
   const maxCourse = 10;
 
-  // Group pour le vérin
   let groupVerin = new THREE.Group();
   scene.add(groupVerin);
 
-  // Objets
   let cylFond, cylTige, piston, rod;
   let labelFond, labelTige, labelPiston, labelTigeLabel;
 
   function createVerin() {
-    while(groupVerin.children.length > 0){
-      let obj = groupVerin.children[0];
-      groupVerin.remove(obj);
-      if(obj.geometry) obj.geometry.dispose();
-      if(obj.material) obj.material.dispose();
-    }
-
     const longueurTotale = maxCourse + 12;
     const demiLong = longueurTotale / 2;
 
     const rPiston = diameterPiston / 2;
     const rTige = diameterTige / 2;
 
+    // Chambre fond
     const geoFond = new THREE.CylinderGeometry(rPiston, rPiston, demiLong, 64);
     const matFond = new THREE.MeshStandardMaterial({color:0x0077ff, transparent:true, opacity:0.3});
     cylFond = new THREE.Mesh(geoFond, matFond);
@@ -157,6 +148,7 @@
     cylFond.position.x = - demiLong/2;
     groupVerin.add(cylFond);
 
+    // Chambre tige
     const geoTige = new THREE.CylinderGeometry(rPiston, rPiston, demiLong, 64);
     const matTige = new THREE.MeshStandardMaterial({color:0x00ff88, transparent:true, opacity:0.3});
     cylTige = new THREE.Mesh(geoTige, matTige);
@@ -164,12 +156,14 @@
     cylTige.position.x = demiLong/2;
     groupVerin.add(cylTige);
 
+    // Piston
     const geoPiston = new THREE.CylinderGeometry(rPiston, rPiston, 1, 64);
     const matPiston = new THREE.MeshStandardMaterial({color:0xff0000});
     piston = new THREE.Mesh(geoPiston, matPiston);
     piston.rotation.z = Math.PI/2;
     groupVerin.add(piston);
 
+    // Tige
     const longueurTige = 14;
     const geoRod = new THREE.CylinderGeometry(rTige, rTige, longueurTige, 64);
     const matRod = new THREE.MeshStandardMaterial({color:0xaaaaaa});
@@ -210,12 +204,12 @@
       diameterTige = diameterPiston;
       sliderTige.value = diameterTige.toFixed(1);
     }
-    createVerin();
 
     const courseSlider = sliderCourse.value;
     const course = (courseSlider / 100) * maxCourse;
     const pistonX = course - (maxCourse / 2);
     piston.position.x = pistonX;
+
     const decalageTige = 6;
     rod.position.x = pistonX + decalageTige;
 
@@ -295,11 +289,8 @@
     if(autoAnim) {
       let val = parseFloat(sliderCourse.value);
       val += direction * speed;
-      if(val > 100) {
-        val = 100; direction = -1;
-      } else if(val < 0) {
-        val = 0; direction = 1;
-      }
+      if(val > 100) { val = 100; direction = -1; }
+      else if(val < 0) { val = 0; direction = 1; }
       sliderCourse.value = val.toFixed(1);
       updateVerin();
     }
